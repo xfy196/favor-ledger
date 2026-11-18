@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 人情记账簿
 
-## Getting Started
+家庭人情往来记账：收礼 / 回礼一对一配对、两清判定、按人聚合。  
+技术栈：Next.js · Cloudflare Workers (OpenNext) · D1 · Better Auth · Drizzle。
 
-First, run the development server:
+## 本地开发
+
+需要 Node.js ≥ 22.12（推荐 24）。
 
 ```bash
+npm install
+cp .dev.vars.example .dev.vars
+npm run db:migrate:local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打开 http://localhost:3000 ，注册邮箱账号后即可使用。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 脚本
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| 命令 | 说明 |
+|---|---|
+| `npm run dev` | Next 开发服务器（含本地 D1 绑定） |
+| `npm test` | 领域层单测 |
+| `npm run db:migrate:local` | 应用 D1 迁移到本地 |
+| `npm run preview` | OpenNext 本地 Workers 预览 |
+| `npm run deploy` | 构建并部署到 Cloudflare |
 
-## Learn More
+## 生产部署
 
-To learn more about Next.js, take a look at the following resources:
+1. `npx wrangler d1 create favor-ledger`，把返回的 `database_id` 写入 `wrangler.jsonc`
+2. `npm run db:migrate:remote`
+3. 配置 secrets：
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npx wrangler secret put BETTER_AUTH_SECRET
+npx wrangler secret put BETTER_AUTH_URL
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put EMAIL_FROM
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. `npm run deploy`
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+未配置 `RESEND_API_KEY` 时，密码重置邮件会跳过发送（开发可用）。

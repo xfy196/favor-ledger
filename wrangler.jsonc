@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "favor-ledger",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "favor-ledger",
+      "database_id": "0873f7b7-3d23-418c-b613-6f8ecc2ae91e",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "BETTER_AUTH_URL": "https://favor-ledger.xfy196.workers.dev"
+  }
+}
