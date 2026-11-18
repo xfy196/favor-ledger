@@ -31,9 +31,24 @@ npm run db:migrate:remote
 
 ## 发布
 
+本地：
+
 ```bash
 npm run deploy
 ```
+
+### Workers Builds（Git 连接）
+
+Dashboard → Worker → Settings → Build，必须改成：
+
+| 设置 | 值 |
+|------|-----|
+| Build command | `npm run build:worker` |
+| Deploy command | `npx wrangler deploy` |
+
+不要用默认的 `npm run build`：那只会跑 `next build`，不会生成 `.open-next`。随后 `wrangler deploy` 会检测到 OpenNext 并转调 `opennextjs-cloudflare deploy`，于是报 `Could not find compiled Open Next config`。
+
+也可把 Deploy command 设为 `npm run deploy`（内部会先 build 再 deploy）；此时 Build command 可留空，避免重复构建。
 
 ## 本地验收清单（§11）
 
