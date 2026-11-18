@@ -109,22 +109,30 @@ export async function listPersonNames(): Promise<string[]> {
 }
 
 export async function listPendingTargets(person: string, excludeOutId?: string) {
+  const trimmed = person.trim();
+  if (!trimmed) return [];
+
   const { db, familyId } = await requireFamilyContext();
   const rows = await db.query.records.findMany({
     where: eq(records.familyId, familyId),
   });
   const likes = rows.map((r) => toLike(toMeta(r)));
-  const pending = listPendingInForPerson(person, likes, excludeOutId);
-  return pending.map((p) => {
-    const full = rows.find((r) => r.id === p.id)!;
-    return {
-      id: full.id,
-      amountCents: full.amountCents,
-      occasion: full.occasion,
-      date: full.date,
-      member: full.member,
-    };
-  });
+  const pending = listPendingInForPerson(trimmed, likes, excludeOutId);
+
+  return pending
+    .map((p) => {
+      const full = rows.find((r) => r.id === p.id)!;
+      return {
+        id: full.id,
+        amountCents: full.amountCents,
+        occasion: full.occasion,
+        date: full.date,
+        member: full.member,
+      };
+    })
+    .sort((a, b) =>
+      b.date === a.date ? b.id.localeCompare(a.id) : b.date.localeCompare(a.date),
+    );
 }
 
 export async function createRecord(input: {

@@ -76,36 +76,64 @@ export function RecordForm({
     editing?.targetId ?? "__none__",
   );
   const [pending, setPending] = useState<PendingTarget[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
+  const trimmedPerson = person.trim();
+
   const duplicateName = useMemo(() => {
-    const trimmed = person.trim();
-    if (!trimmed) return false;
-    if (editing && editing.person === trimmed) return false;
-    return personNames.includes(trimmed);
-  }, [person, personNames, editing]);
+    if (!trimmedPerson) return false;
+    if (editing && editing.person === trimmedPerson) return false;
+    return personNames.includes(trimmedPerson);
+  }, [trimmedPerson, personNames, editing]);
 
   const suggestions = useMemo(() => {
-    const q = person.trim();
-    if (!q) return [];
-    return personNames.filter((n) => n.includes(q) && n !== q).slice(0, 6);
-  }, [person, personNames]);
+    if (!trimmedPerson) return [];
+    return personNames
+      .filter((n) => n.includes(trimmedPerson) && n !== trimmedPerson)
+      .slice(0, 6);
+  }, [trimmedPerson, personNames]);
+
+  function formatPendingLabel(p: PendingTarget) {
+    return `${p.date} · ${p.occasion || "无事由"} · ¥${formatYuan(p.amountCents)}`;
+  }
 
   useEffect(() => {
-    if (direction !== "out" || !person.trim()) {
+    if (direction !== "out") {
       setPending([]);
+      setPendingLoading(false);
       return;
     }
+    if (!trimmedPerson) {
+      setPending([]);
+      setPendingLoading(false);
+      setTargetId("__none__");
+      return;
+    }
+
     let cancelled = false;
-    listPendingTargets(person.trim(), editing?.id).then((rows) => {
-      if (!cancelled) setPending(rows);
-    });
+    setPendingLoading(true);
+    listPendingTargets(trimmedPerson, editing?.id)
+      .then((rows) => {
+        if (cancelled) return;
+        setPending(rows);
+        setTargetId((current) => {
+          if (rows.some((row) => row.id === current)) return current;
+          // 仅一条待回礼时默认选中，方便回礼
+          if (rows.length === 1 && !editing?.id) return rows[0].id;
+          return "__none__";
+        });
+      })
+      .finally(() => {
+        if (!cancelled) setPendingLoading(false);
+      });
+
     return () => {
       cancelled = true;
     };
-  }, [direction, person, editing?.id]);
+  }, [direction, trimmedPerson, editing?.id]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -280,29 +308,53 @@ export function RecordForm({
             {direction === "out" ? (
               <Field>
                 <FieldLabel>配对待回礼</FieldLabel>
-                <Select
-                  value={targetId}
-                  onValueChange={(value) => {
-                    if (value) setTargetId(value);
-                  }}
-                >
-                  <SelectTrigger className="h-10 w-full">
-                    <SelectValue placeholder="不关联" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="__none__">不关联</SelectItem>
-                      {pending.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.date} · {p.occasion || "无事由"} · ¥
-                          {formatYuan(p.amountCents)}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                {person.trim() && pending.length === 0 ? (
-                  <FieldDescription>该人暂无待回礼事项</FieldDescription>
+                {!trimmedPerson ? (
+                  <FieldDescription>
+                    请先填写对方姓名，将自动加载其未配对的收礼记录。
+                  </FieldDescription>
+                ) : pendingLoading ? (
+                  <div className="flex h-10 items-center gap-2 rounded-lg border border-input px-3 text-sm text-muted-foreground">
+                    <Spinner />
+                    正在查询待回礼…
+                  </div>
+                ) : (
+                  <Select
+                    key={`pending-${trimmedPerson}-${pending.map((p) => p.id).join(",")}`}
+                    value={targetId}
+                    onValueChange={(value) => {
+                      if (value) setTargetId(value);
+                    }}
+                  >
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue placeholder="不关联">
+                        {(value: string | null) => {
+                          if (!value || value === "__none__") return "不关联";
+                          const hit = pending.find((p) => p.id === value);
+                          return hit ? formatPendingLabel(hit) : "不关联";
+                        }}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="__none__">不关联</SelectItem>
+                        {pending.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {formatPendingLabel(p)}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+                {trimmedPerson && !pendingLoading && pending.length === 0 ? (
+                  <FieldDescription>
+                    「{trimmedPerson}」暂无未配对的收礼记录，可先不关联直接保存。
+                  </FieldDescription>
+                ) : null}
+                {trimmedPerson && !pendingLoading && pending.length > 0 ? (
+                  <FieldDescription>
+                    共 {pending.length} 笔待回礼收礼，请选择要配对的一笔。
+                  </FieldDescription>
                 ) : null}
               </Field>
             ) : null}
